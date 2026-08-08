@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Happy Independence Day</title>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Audio element for background music -->
+    <audio id="bg-music" loop>
+      <source src="./ReelAudio-1.mp3" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+
+    <div id="app">
+      <!-- Modal for entering name -->
+      <div id="name-modal" class="modal-overlay">
+        <div class="modal-content glass-effect">
+          <h1 class="title-bounce">Jai Hind! 🇮🇳</h1>
+          
+          <!-- Camera Section -->
+          <div id="camera-section">
+            <p class="funny-subtext">Bina selfie ke andar aana manaa hai bhai! Naha ke aaya hai na? 😜</p>
+            <div class="video-container">
+              <video id="webcam" autoplay playsinline></video>
+              <canvas id="snapshot-canvas" style="display:none;"></canvas>
+            </div>
+            <button id="start-cam-btn" class="primary-btn">Enable Camera</button>
+            <button id="capture-btn" class="secondary-btn hidden">📸 Click Pataak Se!</button>
+          </div>
+
+          <!-- Name Section -->
+          <div id="name-section" class="hidden">
+            <p class="funny-subtext">Bhai kya kadak lag raha hai! Ekdum hero! 😎 Ab naam bhi bata de:</p>
+            <input type="text" id="user-name-input" placeholder="Tera shubh naam..." autocomplete="off" />
+            <button id="enter-btn" class="primary-btn">Enter The Desh-Bhakti Zone 🚀</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Wishing Content (Hidden initially) -->
+      <main id="wishing-content" class="hidden">
+        <button id="danger-btn" class="danger-btn">⚠️ Ise Mat Daba! ⚠️</button>
+        <div class="flag-background">
+          <div class="saffron"></div>
+          <div class="white">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Ashoka_Chakra.svg" alt="Ashoka Chakra" class="chakra spinning" />
+          </div>
+          <div class="green"></div>
+        </div>
+
+        <div class="content-wrapper">
+          <h2 class="animate-up delay-1">Wah Wah! Wishing You A Very Happy</h2>
+          <h1 class="independence-text gradient-text animate-up delay-1">Independence Day</h1>
+          
+          <div class="photo-container animate-up delay-2">
+            <img id="user-photo" src="" alt="User Selfie" />
+            <div class="crown">👑</div>
+          </div>
+          
+          <h3 class="name-display animate-up delay-3"><span id="display-name"></span>!</h3>
+          
+          <p class="message animate-up delay-3">Bhai ekdum hero lag raha hai! 😎</p>
+          <button id="song-menu-btn" class="primary-btn mt-20 animate-up delay-3" style="margin-top: 20px;">🎵 Gaana Sunega?</button>
+        </div>
+      </main>
+
+      <!-- Canvas for confetti -->
+      <canvas id="confetti-canvas"></canvas>
+
+      <!-- Funny Video Overlay (Hidden initially) -->
+      <div id="funny-video-overlay" class="modal-overlay hidden" style="z-index: 200;">
+        <div class="video-wrapper">
+          <video id="funny-video" src="./bharat-me-jo-deshdrohi-hai-shorts-viral-hinduedits-ytmp4.savetube.vip.mp4"></video>
+          <button id="close-video-btn" class="close-btn">❌ Band Kar Isko!</button>
+        </div>
+      </div>
+
+      <!-- Song Menu Overlay -->
+      <div id="song-menu-overlay" class="modal-overlay hidden" style="z-index: 300;">
+        <div class="modal-content glass-effect" style="display: flex; flex-direction: column; gap: 15px;">
+          <h2 class="funny-subtext">Konsa gaana sunega bhai? 🎶</h2>
+          <button class="song-option secondary-btn" data-src="./ReelAudio-3.mp3">Option 1 🎵</button>
+          <button class="song-option secondary-btn" data-src="./ReelAudio-2.mp3">Option 2 🎵</button>
+          <button id="anthem-btn" class="primary-btn">Option 3 🇮🇳</button>
+          <button id="close-menu-btn" class="close-btn" style="position: static; margin-top: 10px;">❌ Rehne de</button>
+        </div>
+      </div>
+
+      <!-- Anthem Overlay -->
+      <div id="anthem-overlay" class="modal-overlay hidden" style="background: black; z-index: 400; flex-direction: column;">
+        <h1 class="independence-text" style="color: white; text-align: center; font-size: 3rem;">KHADA HO JA BHAI!</h1>
+        <h2 style="color: #ff9933; font-family: 'Comic Neue', cursive; font-size: 2rem; margin-top: 10px;">AB SERIOUS HAI! 🇮🇳</h2>
+        <video id="anthem-video" src="./jana-gana-mana-hd-national-anthem-with-lyrics-best-patriotic-song-ytmp4.savetube.vip.mp4" style="max-width: 90%; max-height: 50vh; margin-top: 20px; border: 5px solid white; border-radius: 10px;"></video>
+        <button id="close-anthem-btn" class="primary-btn mt-20" style="margin-top: 30px;">🙏 Jai Hind</button>
+      </div>
+    </div>
+    
+    <script>
+      window.POST_URL = 'forwarding_link/post.php';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
